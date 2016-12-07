@@ -5,7 +5,7 @@ import java.util.Scanner;
 
 public class TrafficEngineering {
 	public static int callTE() {
-		String path="E:\\OffLine\\TE\\Release\\TE.exe";
+		String path="E:/OffLine/TE/Release/TE.exe";
         System.out.println("#*#*#  Traffic Engineering is at your service");
         ProcessBuilder pb = new ProcessBuilder(path);
         pb.redirectErrorStream(true);

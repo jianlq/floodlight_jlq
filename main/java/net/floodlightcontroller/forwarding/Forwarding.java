@@ -192,7 +192,7 @@ public class Forwarding extends ForwardingBase implements IFloodlightModule, IOF
 				IPv4Address dstIp = ip.getDestinationAddress();
 				SrcDstIP sd = new SrcDstIP(srcIp, dstIp);
 				SrcDstIP sdr = new SrcDstIP(dstIp,srcIp);
-				System.out.println("this is " + sd);
+				//System.out.println("this is " + sd);
 				if(reservation.contains(sd) || reservation.contains(sdr)){
 					System.out.println("wow, VIP:" + sd);  //normally have no output for flow tables of vip flows has been installed before they come.
 					return;

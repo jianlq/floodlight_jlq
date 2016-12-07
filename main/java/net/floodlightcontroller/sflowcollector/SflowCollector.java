@@ -121,7 +121,7 @@ public class SflowCollector implements IFloodlightModule, ISflowCollectionServic
 		period = DEFAULT_PERIOD; 
 		
 		agentIps = new ArrayList<String>(); //读入 sflow agent ip
-		readIpFile("inputFile/agent_ip.txt",agentIps); //注意：pay attention to 文件结束，不要有多的空行之类的！！！！
+		readIpFile("outputFile/agent_ip.txt",agentIps); //注意：pay attention to 文件结束，不要有多的空行之类的！！！！
 		
 		/*for(String agentIp : agentIps) {
 			System.out.println(agentIp);

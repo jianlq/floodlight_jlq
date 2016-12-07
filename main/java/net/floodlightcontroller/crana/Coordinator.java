@@ -69,8 +69,8 @@ public class Coordinator implements IFloodlightModule, ReservationService,ITopol
 
 	protected static int OFMESSAGE_DAMPER_CAPACITY = 10000; // TODO: find sweet spot
 	protected static int OFMESSAGE_DAMPER_TIMEOUT = 250; // ms
-	public static final int INITIAL_DEALY = 60; // second
-	public static final int PERIOD = 4000; //second big because we only want compute once
+	public static final int INITIAL_DEALY = 30; // second
+	public static final int PERIOD = 400; //second big because we only want compute once
 	
 	public static final int FLOW_DURATION = 2; //minutes : ditg duration time  
 	public static final int Count = 20; // Numbers of computer utilization 
@@ -79,8 +79,8 @@ public class Coordinator implements IFloodlightModule, ReservationService,ITopol
 	
 	public static Random rand;
 
-	public static int FLOWMOD_DEFAULT_IDLE_TIMEOUT = 3000; // in seconds
-	public static int FLOWMOD_DEFAULT_HARD_TIMEOUT = 3100; // 0 means infinite
+	public static int FLOWMOD_DEFAULT_IDLE_TIMEOUT = 300; // in seconds
+	public static int FLOWMOD_DEFAULT_HARD_TIMEOUT = 310; // 0 means infinite
 	public static int FLOWMOD_DEFAULT_PRIORITY = 233; 
 	// 0 is the default table-miss flow in OF1.3+, so we need to use 1
 
@@ -285,12 +285,12 @@ public class Coordinator implements IFloodlightModule, ReservationService,ITopol
 	}
 
 	public void GenerateDemand() throws IOException {
-		//int bgDemNum = rand.nextInt(numDpid * (numDpid - 1) / 2) + 1;
-		//int bgDemNum = numDpid* (numDpid-1)/2;
-		int bgDemNum = 1;
-		int orDemNum = rand.nextInt(bgDemNum) + 1;
+		//int bgDemNum = rand.nextInt(numDpid * (numDpid - 1) / 4) + 1;
+		//int orDemNum = rand.nextInt(bgDemNum) + 1;
+		int bgDemNum = 15;
+		int orDemNum = 5;
 		req.clear();
-		GenDemand(bgDemNum, orDemNum, "inputFile/req.txt", "inputFile/appreq.txt", "inputFile/ditg.txt");
+		GenDemand(bgDemNum, orDemNum, "inputFile/req.txt", "inputFile/reqapp.txt", "inputFile/ditg.txt");
 	}
 
 	public void GenDemand(int bgDemNum, int orDemNum, String reqName, String appreqName, String ditgName)
@@ -302,10 +302,8 @@ public class Coordinator implements IFloodlightModule, ReservationService,ITopol
 		File ditgFile = new File(ditgName);
 		PrintWriter outDitg = new PrintWriter(ditgFile);
 
-		File appreqFile = new File(appreqName);
-		PrintWriter outReqApp = new PrintWriter(appreqFile);
-		outReqApp.println(orDemNum);
-
+		File Refile = new File("inputFile/redirect");
+		PrintWriter outRedirec = new PrintWriter(Refile);
 		// background traffic
 		/*
 		int k = 0;
@@ -316,6 +314,7 @@ public class Coordinator implements IFloodlightModule, ReservationService,ITopol
 				req.add(dem);
 				outReq.println(dem.printDem());
 				outDitg.print(genTraffic(k++, i, j, flow));
+				outRedirec.println("ITGDec log" + j + " >> logsummary");
 			}
 			*/
 
@@ -326,35 +325,42 @@ public class Coordinator implements IFloodlightModule, ReservationService,ITopol
 				t = rand.nextInt(numDpid);
 			} while (s == t);
 			//int flow = 40960+rand.nextInt(409600);
-			int flow = 409600;
+			int flow = 40960;
 			Demand dem = new Demand(i, s, t, flow);
 			req.add(dem);
 			outReq.println(dem.printDem());
 			outDitg.print(genTraffic(i, s, t, flow));
+			outRedirec.println("ITGDec log" + t + " >> logsummary");
 		}
-
-		/*
+		
 		// Overlay traffic
+		File appreqFile = new File(appreqName);
+		PrintWriter outReqApp = new PrintWriter(appreqFile);
+		outReqApp.println(orDemNum);
+		
+		int j = req.size();
 		int n = appver.size();
 		for (int i = 0; i < orDemNum; i++) {
 			int s = rand.nextInt(n), t;
 			do {
 				t = rand.nextInt(n);
 			} while (s == t);
-			int flow = 409600;
+			int flow = 40960;
 			Demand dem = new Demand(i, appver.get(s), appver.get(t), flow * 1.0);
 			req.add(dem);
 			outReqApp.println(dem.printDem());
-			outDitg.print(genTraffic(k++, appver.get(s), appver.get(t), flow));
+			outDitg.print(genTraffic(j++, appver.get(s), appver.get(t), flow));
+			outRedirec.println("ITGDec log" + appver.get(t) + " >> logsummary");
 		}
-		*/
-		outReq.close();
-		outDitg.close();
 		outReqApp.close();
+		
+		outRedirec.close();
+		outReq.close();
+		outDitg.close();		
 	}
 
 	public String genTraffic(int i, int s, int t, int flow) {
-		return "time x h" + (t + 1) + " xterm -title d" + i + "_h" + (t + 1) + "_recv -e ITGRecv -l log" + i + "\r\n" 
+		return "time x h" + (t + 1) + " xterm -title d" + i + "_h" + (t + 1) + "_recv -e ITGRecv -l log" + t + "\r\n" 
 	            + "py time.sleep(0.2)\r\n" 
 				+ "time x h" + (s + 1) + " xterm -title d" + i + "_h" + (s + 1) + "_send -e ITGSend -a 10.0.0." + (t + 1) + " -T UDP -C "+flow/4096 +" -c 512 -t "+FLOW_DURATION*60*1000+"\r\n" 
 	            + "py time.sleep(0.2)\r\n";
@@ -385,31 +391,23 @@ public class Coordinator implements IFloodlightModule, ReservationService,ITopol
 		while (ver.size() < n) {
 			ver.add(rand.nextInt(this.numDpid) + 1);
 		}
-
+		
 		appver.clear();
-		for (Iterator<Integer> it = ver.iterator(); it.hasNext();) {
-			appver.add(it.next());
+		for(Integer it : ver){
+			appver.add(it);
 		}
 
-		File file = new File("inputFile\\ORtopo.txt");
+		File file = new File("inputFile\\topoOR.txt");
 		PrintWriter ORout = new PrintWriter(file);
-
 		ORout.println(n + " " + m);
-
-		int j=0;int bw = 0;
-		for (int k = 1; k < appver.size(); k++) {
-			int t = rand.nextInt(k), cap = rand.nextInt(50), delay = rand.nextInt(10) + 1;
-			ORout.println((j++) + appver.get(k) + " " + appver.get(t) + " " + cap + " " + bw + " " + delay);
-			ORout.println((j++) + appver.get(t) + " " + appver.get(k) + " " + cap + " " + bw + " " + delay);
-		}
-
-		for (int i = 0; i < m - n + 1; i++) {
-			int s = rand.nextInt(n), t = rand.nextInt(n), cap = rand.nextInt(50), delay = rand.nextInt(10) + 1;
-			while (t == s)
-				t = rand.nextInt(n);
-
-			ORout.println((j++) + appver.get(s) + " " + appver.get(t) + " " + cap + " " + bw + " " + delay );
-			ORout.println((j++) +appver.get(t) + " " + appver.get(s) + " " + cap + " " + bw + " " + delay );
+		
+		int bw = 0;
+		for(int i = 0; i < m; i++){
+			int s = rand.nextInt(n), t, cap = rand.nextInt(50), delay = rand.nextInt(10) + 1;		
+			do{
+				t = rand.nextInt(n);			
+			}while (t == s);
+			ORout.println(i + " " + appver.get(s) + " " + appver.get(t) + " " + cap + " " + bw + " " + delay );	
 		}
 		ORout.close();
 	}
@@ -434,8 +432,6 @@ public class Coordinator implements IFloodlightModule, ReservationService,ITopol
 		allLinks.clear();
 		if (dpidSet.size() != 0)
 			numDpid = dpidSet.size();
-
-		System.out.println(", this time has " + numDpid + " sw");
 
 		if (dpidSet != null) {
 			for (DatapathId dpid : dpidSet) {
@@ -476,7 +472,6 @@ public class Coordinator implements IFloodlightModule, ReservationService,ITopol
 
 					}
 			topoout.close();
-			ModifiedTopo((numDpid / 3 + 1), (numDpid / 3 + 1)* 3); /** *3 can change big when topology is big */
 		} catch (IOException e) {
 			System.out.println(e);
 		}
@@ -550,7 +545,7 @@ public class Coordinator implements IFloodlightModule, ReservationService,ITopol
 			    	file.delete();
 			Runnable utiltest = new UtilTask();
 			ScheduledExecutorService utilservice = Executors.newSingleThreadScheduledExecutor();
-			utilservice.scheduleAtFixedRate(utiltest, INITIAL_DEALY+15, 5,TimeUnit.SECONDS);
+			utilservice.scheduleAtFixedRate(utiltest, 20, 5,TimeUnit.SECONDS);
 		}
 	}
 
@@ -559,6 +554,7 @@ public class Coordinator implements IFloodlightModule, ReservationService,ITopol
 			int exitid = 1;
 			try {
 				updateTopo();
+				ModifiedTopo((numDpid / 3 + 1), (numDpid / 3 + 1)* 3); /** *3 can change big when topology is big */
 				genSflowSH("inputFile\\sflow.sh", numDpid);
 				GenerateDemand();
 
@@ -605,19 +601,22 @@ public class Coordinator implements IFloodlightModule, ReservationService,ITopol
 					double util = e.bw/e.capacity;
 					res = Math.max(res, util);
 				}
+				//
 				File f = new File("inputFile//util.txt");
 				FileWriter outUtil = new FileWriter(f,true);
 				outUtil.write(" " + res + "\r\n");
+				System.err.println("bw is " + res*100000000 );
 				System.err.println("link utilization is " + res );
 				/*
 				if(curCount < Count){
 					SumUtil += res;
 					curCount++;
-					System.err.println("----- link utilization is " + SumUtil/curCount );
 				}
-				else
-					System.err.println("----- link utilization is " + SumUtil/Count );
-					*/
+				else{
+					System.out.println("----- link utilization is ------" + SumUtil/Count );
+					System.out.println("----- link utilization is ------" );
+				}*/
+					
 				outUtil.close();
 			} catch (IOException e) {
 				e.printStackTrace();
